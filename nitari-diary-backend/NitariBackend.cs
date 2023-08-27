@@ -101,7 +101,7 @@ namespace nitari_diary_backend
       var data = JsonConvert.DeserializeObject<DiaryRequest>(requestBody);
 
       // Get tagDiaries in data and change string
-      var tagDiaries = data.tagDiaries;
+      var tagDiaries = data.TagDiaries;
       // parse tagDiaries to json string
       var tagDiariesJson = JsonConvert.SerializeObject(tagDiaries);
 
@@ -176,7 +176,7 @@ namespace nitari_diary_backend
     public class DiaryRequest
     {
       public string UserId { get; set; }
-      public List<TagDiary> tagDiaries { get; set; }
+      public List<TagDiary> TagDiaries { get; set; }
       public string Date { get; set; }
     }
 
