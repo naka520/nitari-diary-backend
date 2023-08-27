@@ -41,7 +41,7 @@ namespace nitari_diary_backend
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(List<DiaryResponse>), Description = "The OK response")]
     public static async Task<IActionResult> GetDailySpecificUser(
     [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "diary/all")] HttpRequest req,
-    [Table("DailyEntity"/*, Connection = "MyStorage"*/)] TableClient tableClient, ILogger log)
+    [Table("DailyEntity", Connection = "MyStorage")] TableClient tableClient, ILogger log)
     {
       log.LogInformation($"/diary/all called");
       string userId = req.Query["userId"];
@@ -82,7 +82,7 @@ namespace nitari_diary_backend
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(DiaryResponse), Description = "The OK response")]
     public static async Task<IActionResult> PostDailySpecificUser(
     [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "diary")] HttpRequest req,
-    [Table("DailyEntity"/*, Connection = "MyStorage"*/)] TableClient tableClient,
+    [Table("DailyEntity", Connection = "MyStorage")] TableClient tableClient,
     ILogger log)
     {
       log.LogInformation($"[POST] /daily called");
