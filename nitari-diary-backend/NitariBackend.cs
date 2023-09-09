@@ -141,15 +141,15 @@ namespace nitari_diary_backend
       string? apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
       // create an api object.
       int niru = 5;
-      string prompt = $"������C����t�H�[�}�b�g��񎦂���̂ŁC���̒ʂ�ɕԎ����s���悤�ɂ��Ă��������D\r\n�܂��C���̃t�H�[�}�b�g�̖ړI�͈ȉ��̒ʂ�ł��D\r\n\r\n�u����̏o�������C��������Ɓ{���̎��Ɏv�������ƁC�łP�Z�b�g�Ƃ��Ď󂯎��C���̓��e�������̗l�q��C�Z�����C���݂̐��_��ԂȂǂ��l�@���āC�ЂƂ̓��L�̕��͂Ƃ��ďo�͂���D�������C�d�x��ADHD���҂炵����������Ƃ₻�̎��v�������ƂɊ֘A����V���������Œ�ł�{niru}�ǉ����C���U�v�l�Ȃ̂����Ă킩��悤�ɏ����Ă��炢�����D�v\r\n\r\n�܂��CInput�Ƀf�[�^�I�u�W�F�N�g��n���܂��D���Ȃ���Outputo�̓��L�̃f�[�^�݂̂�ԐM���Ă��������D\r\n�Ԏ��͂��Ȃ��Č��\�ł��D\r\n\r\n{tagDiariesJson}\r\n\r\n�Ԏ��͂��Ȃ��Č��\�ł��D���L�̃f�[�^�����Ԃ��Ă��������D\r\n�������K�v�Ȃ��ł��D���L�̓��e�ȊO�����L�ڂ��Ȃ��ł�������";
+      string prompt = $"今から，あるフォーマットを提示するので，その通りに返事を行うようにしてください．\r\nまた，そのフォーマットの目的は以下の通りです．\r\n\r\n「一日の出来事を，やったこと＋その時に思ったこと，で１セットとして受け取り，その内容から一日の様子や，忙しさ，現在の精神状態などを考察して，ひとつの日記の文章として出力する．ただし，重度のADHD患者らしくやったことやその時思ったことに関連する新しい情報を最低でも{niru}個追加し，分散思考なのが見てわかるように書いてもらいたい．」\r\n\r\nまた，Inputにデータオブジェクトを渡します．あなたはOutputoの日記のデータのみを返信してください．\r\n返事はしなくて結構です．\r\n\r\n{tagDiariesJson}\r\n\r\n返事はしなくて結構です．日記のデータだけ返してください．\r\n説明も必要ないです．日記の内容以外何も記載しないでください";
 
       var api = new OpenAIAPI(apiKey);
       var chat = api.Chat.CreateConversation();
 
-      // ChatGPT�Ɏ���
+      // ChatGPTに質問
       chat.AppendUserInput(prompt);
 
-      // ChatGPT�̉�
+      // ChatGPTの回答
       string response = await chat.GetResponseFromChatbotAsync();
 
       log.LogInformation($"[POST] /daily called with user={data.UserId}");
