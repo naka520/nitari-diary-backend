@@ -68,6 +68,7 @@ namespace nitari_diary_backend
           Date = diary.Date,
           Title = diary.Title,
           Description= diary.Description,
+          ImageUrl = diary.ImageUrl,
           CreatedAt = diary.CreatedAt,
         };
         diaryResponses.Add(diaryResponse);
@@ -98,6 +99,7 @@ namespace nitari_diary_backend
         Date = diary.Date,
         Title = diary.Title,
         Description = diary.Description,
+        ImageUrl = diary.ImageUrl,
         CreatedAt = diary.CreatedAt,
       };
 
@@ -173,6 +175,7 @@ namespace nitari_diary_backend
         UserId = data.UserId,
         Title = data.Date,
         Description = response,
+        ImageUrl = "",
         Type = "Diary",
         CreatedAt = DateTime.Now.ToString("yyyyMMddHHmmss")
       };
