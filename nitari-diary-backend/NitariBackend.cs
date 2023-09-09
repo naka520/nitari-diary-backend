@@ -138,20 +138,10 @@ namespace nitari_diary_backend
       // parse tagDiaries to json string
       var tagDiariesJson = JsonConvert.SerializeObject(tagDiaries);
 
-      // Request OpenAI API
-      //var openAiResponse = await OpenAiService.GetOpenAiResponse(data.tagDiaries);
-      // get an api key.
       string? apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
       // create an api object.
       int niru = 5;
       string prompt = $"今から，あるフォーマットを提示するので，その通りに返事を行うようにしてください．\r\nまた，そのフォーマットの目的は以下の通りです．\r\n\r\n「一日の出来事を，やったこと＋その時に思ったこと，で１セットとして受け取り，その内容から一日の様子や，忙しさ，現在の精神状態などを考察して，ひとつの日記の文章として出力する．ただし，重度のADHD患者らしくやったことやその時思ったことに関連する新しい情報を最低でも{niru}個追加し，分散思考なのが見てわかるように書いてもらいたい．」\r\n\r\nまた，Inputにデータオブジェクトを渡します．あなたはOutputoの日記のデータのみを返信してください．\r\n返事はしなくて結構です．\r\n\r\n{tagDiariesJson}\r\n\r\n返事はしなくて結構です．日記のデータだけ返してください．\r\n説明も必要ないです．日記の内容以外何も記載しないでください";
-      //apiKey = "sk-xxxxx";
-      //OpenAIAPI api = new OpenAIAPI(apiKey);
-
-      //string? diaryFormat = await api.Completions.GetCompletion(prompt);
-      //diaryFormat = diaryFormat.Trim();
-
-      //Console.WriteLine(diaryFormat);
 
       var api = new OpenAIAPI(apiKey);
       var chat = api.Chat.CreateConversation();
@@ -163,8 +153,6 @@ namespace nitari_diary_backend
       string response = await chat.GetResponseFromChatbotAsync();
 
       log.LogInformation($"[POST] /daily called with user={data.UserId}");
-
-      //openApiDiaryResponse = JsonConvert.DeserializeObject<OpenAPIResponse>(diaryFormat);
 
       // Create DiaryEntity
       DiaryEntity diaryEntity = new DiaryEntity
@@ -221,6 +209,61 @@ namespace nitari_diary_backend
     {
       public string activity { get; set; }
       public string feeling { get; set; }
+    }
+
+    [FunctionName("UpdateDiaryImageUrl")]
+    [OpenApiOperation(operationId: "UpdateDiaryImageUrl", tags: new[] { "Diary" }, Description = "Update Diary ImageUrl")]
+    [OpenApiRequestBody("application/json", typeof(UpdateImageUrlRequest), Required = true, Description = "ImageUrl data")]
+    [OpenApiParameter(name: "Authorization", In = ParameterLocation.Header, Required = true, Type = typeof(string), Description = "accessToken")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(DiaryResponse), Description = "The OK response")]
+    public static async Task<IActionResult> UpdateDiaryImageUrl(
+    [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "diary/imageurl")] HttpRequest req,
+    [Table("DailyEntity", Connection = "MyStorage")] TableClient tableClient,
+    ILogger log)
+    {
+      log.LogInformation($"[PATCH] /diary/imageurl called");
+
+      string token = req.Headers["Authorization"].FirstOrDefault();
+      var result = await AuthService.VerifyAccessToken(token);
+      if (!result)
+      {
+        return new UnauthorizedResult();
+      }
+
+      string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+      var data = JsonConvert.DeserializeObject<UpdateImageUrlRequest>(requestBody);
+
+      string partitionKey = data.UserId;
+      string rowKey = data.UserId + "-" + data.Date;
+
+      try
+      {
+        // Fetch the entity from the table
+        var tableEntity = await tableClient.GetEntityAsync<DiaryEntity>(partitionKey, rowKey);
+
+        if (tableEntity == null || tableEntity.Value == null)
+        {
+          return new NotFoundResult();
+        }
+
+        // Update ImageUrl and save the entity
+        tableEntity.Value.ImageUrl = data.ImageUrl;
+        await tableClient.UpdateEntityAsync(tableEntity.Value, ETag.All, TableUpdateMode.Replace);
+      }
+      catch (RequestFailedException ex) when (ex.Status == (int)HttpStatusCode.NotFound)
+      {
+        return new NotFoundResult();
+      }
+
+      log.LogInformation($"[PATCH] /diary/imageurl updated with user={data.UserId}");
+      return new OkObjectResult(new { Message = "ImageUrl updated successfully!" });
+    }
+
+    public class UpdateImageUrlRequest
+    {
+      public string UserId { get; set; }
+      public string Date { get; set; }
+      public string ImageUrl { get; set; }
     }
 
     [FunctionName("Auth")]
