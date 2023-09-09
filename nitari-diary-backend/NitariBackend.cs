@@ -89,15 +89,6 @@ namespace nitari_diary_backend
       string userId = req.Query["userId"];
       string date = req.Query["date"];
 
-      // API Authrization
-      string token = req.Headers["Authorization"].FirstOrDefault();
-
-      var result = await AuthService.VerifyAccessToken(token);
-      if (!result)
-      {
-        return new UnauthorizedResult();
-      }
-
       // Get Diary Entity of Login User
       var diary = tableClient.Query<DiaryEntity>().Where(x => x.PartitionKey == userId && x.RowKey == userId + "-" + date).FirstOrDefault();
 
@@ -135,6 +126,7 @@ namespace nitari_diary_backend
       {
         return new UnauthorizedResult();
       }
+      log.LogInformation($"[POST] /daily called with user okok");
 
       string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
       var data = JsonConvert.DeserializeObject<DiaryRequest>(requestBody);
@@ -168,6 +160,8 @@ namespace nitari_diary_backend
       // ChatGPT‚Ì‰ñ“š
       string response = await chat.GetResponseFromChatbotAsync();
 
+      log.LogInformation($"[POST] /daily called with user={data.UserId}");
+
       //openApiDiaryResponse = JsonConvert.DeserializeObject<OpenAPIResponse>(diaryFormat);
 
       // Create DiaryEntity
@@ -192,6 +186,7 @@ namespace nitari_diary_backend
       {
         await tableClient.AddEntityAsync(diaryEntity);
       }
+      log.LogInformation($"[POST] /daily created with user={data.UserId}");
 
       // Create DiaryResponse
       DiaryResponse diaryResponse = new DiaryResponse
