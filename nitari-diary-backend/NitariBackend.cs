@@ -39,7 +39,7 @@ namespace nitari_diary_backend
     [OpenApiParameter(name: "userId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "The specific userId")]
     [OpenApiParameter(name: "Authorization", In = ParameterLocation.Header, Required = true, Type = typeof(string), Description = "accessToken")]
     [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(List<DiaryResponse>), Description = "The OK response")]
-    public static async Task<IActionResult> GetDailySpecificUser(
+    public static async Task<IActionResult> GetDailiesSpecificUser(
     [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "diary/all")] HttpRequest req,
     [Table("DailyEntity", Connection = "MyStorage")] TableClient tableClient, ILogger log)
     {
@@ -74,6 +74,45 @@ namespace nitari_diary_backend
       };
       return new OkObjectResult(diaryResponses);
     }
+
+    // Specific day's diary
+    [FunctionName("GetDiary")]
+    [OpenApiOperation(operationId: "GetDiary", tags: new[] { "Diary" }, Description = "Get Diary Entity of Login User")]
+    [OpenApiParameter(name: "userId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "The specific userId")]
+    [OpenApiParameter(name: "date", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "The specific date")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(DiaryResponse), Description = "The OK response")]
+    public static async Task<IActionResult> GetDailySpecificUser(
+      [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "diary")] HttpRequest req,
+      [Table("DailyEntity", Connection = "MyStorage")] TableClient tableClient, ILogger log)
+    {
+      log.LogInformation($"/diary called");
+      string userId = req.Query["userId"];
+      string date = req.Query["date"];
+
+      // API Authrization
+      string token = req.Headers["Authorization"].FirstOrDefault();
+
+      var result = await AuthService.VerifyAccessToken(token);
+      if (!result)
+      {
+        return new UnauthorizedResult();
+      }
+
+      // Get Diary Entity of Login User
+      var diary = tableClient.Query<DiaryEntity>().Where(x => x.PartitionKey == userId && x.RowKey == userId + "-" + date).FirstOrDefault();
+
+      DiaryResponse diaryResponse = new DiaryResponse
+      {
+        UserId = diary.UserId,
+        Date = diary.Date,
+        Title = diary.Title,
+        Description = diary.Description,
+        CreatedAt = diary.CreatedAt,
+      };
+
+      return new OkObjectResult(diaryResponse);
+    }
+
 
     [FunctionName("PostDiary")]
     [OpenApiOperation(operationId: "PostDiary", tags: new[] { "Diary" }, Description = "Post Diary")]
@@ -135,7 +174,7 @@ namespace nitari_diary_backend
       DiaryEntity diaryEntity = new DiaryEntity
       {
         PartitionKey = data.UserId,
-        RowKey = data.UserId + data.Date,
+        RowKey = data.UserId+ "-" + data.Date,
         Date = data.Date,
         UserId = data.UserId,
         Title = data.Date,
