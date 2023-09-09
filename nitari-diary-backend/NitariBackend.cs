@@ -27,6 +27,7 @@ using Microsoft.Azure.WebJobs.Extensions.Timers;
 using Newtonsoft.Json;
 using System.IO;
 using OpenAI_API;
+using System.Globalization;
 
 namespace nitari_diary_backend
 {
@@ -73,6 +74,49 @@ namespace nitari_diary_backend
         };
         diaryResponses.Add(diaryResponse);
       };
+      return new OkObjectResult(diaryResponses);
+    }
+
+    [FunctionName("GetDiaryWeek")]
+    [OpenApiOperation(operationId: "GetDiaryWeek", tags: new[] { "Diary" }, Description = "Get Diary Entities of Login User for the Week")]
+    [OpenApiParameter(name: "userId", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "The specific userId")]
+    [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(List<DiaryResponse>), Description = "The OK response")]
+    public static async Task<IActionResult> GetDiaryWeek(
+    [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "diary/week")] HttpRequest req,
+    [Table("DailyEntity", Connection = "MyStorage")] TableClient tableClient, ILogger log)
+    {
+      log.LogInformation($"/diary/week called");
+      string userId = req.Query["userId"];
+
+      // 今週の日記エントリをユーザーから取得
+      var todayInJapan = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Tokyo Standard Time")).Date;
+
+      // 週の開始日（月曜日）と終了日（日曜日）を計算
+      var daysToSubtract = (todayInJapan.DayOfWeek == DayOfWeek.Sunday) ? 6 : (int)todayInJapan.DayOfWeek - (int)DayOfWeek.Monday;
+      var startOfWeekInJapan = todayInJapan.AddDays(-daysToSubtract);
+      var endOfWeekInJapan = startOfWeekInJapan.AddDays(6);
+
+      // ソース（データベース）で日記エントリをフィルタリング
+      var startDateString = startOfWeekInJapan.ToString("yyyyMMdd");
+      var endDateString = endOfWeekInJapan.ToString("yyyyMMdd");
+      var diaries = tableClient.Query<DiaryEntity>().Where(x => x.PartitionKey == userId && x.Date.CompareTo(startDateString) >= 0 && x.Date.CompareTo(endDateString) <= 0).ToList();
+
+      List<DiaryResponse> diaryResponses = new List<DiaryResponse>();
+
+      foreach (var diary in diaries)
+      {
+        DiaryResponse diaryResponse = new DiaryResponse
+        {
+          UserId = diary.UserId,
+          Date = diary.Date,
+          Title = diary.Title,
+          Description = diary.Description,
+          ImageUrl = diary.ImageUrl,
+          CreatedAt = diary.CreatedAt,
+        };
+        diaryResponses.Add(diaryResponse);
+      }
+
       return new OkObjectResult(diaryResponses);
     }
 
@@ -138,7 +182,7 @@ namespace nitari_diary_backend
       // parse tagDiaries to json string
       var tagDiariesJson = JsonConvert.SerializeObject(tagDiaries);
 
-      string? apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+      string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
       // create an api object.
       int niru = 5;
       string prompt = $"今から，あるフォーマットを提示するので，その通りに返事を行うようにしてください．\r\nまた，そのフォーマットの目的は以下の通りです．\r\n\r\n「一日の出来事を，やったこと＋その時に思ったこと，で１セットとして受け取り，その内容から一日の様子や，忙しさ，現在の精神状態などを考察して，ひとつの日記の文章として出力する．ただし，重度のADHD患者らしくやったことやその時思ったことに関連する新しい情報を最低でも{niru}個追加し，分散思考なのが見てわかるように書いてもらいたい．」\r\n\r\nまた，Inputにデータオブジェクトを渡します．あなたはOutputoの日記のデータのみを返信してください．\r\n返事はしなくて結構です．\r\n\r\n{tagDiariesJson}\r\n\r\n返事はしなくて結構です．日記のデータだけ返してください．\r\n説明も必要ないです．日記の内容以外何も記載しないでください";
