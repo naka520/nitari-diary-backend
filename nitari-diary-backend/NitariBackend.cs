@@ -28,6 +28,8 @@ using Newtonsoft.Json;
 using System.IO;
 using OpenAI_API;
 using System.Globalization;
+using Newtonsoft.Json.Linq;
+using System.Net.Http;
 
 namespace nitari_diary_backend
 {
@@ -68,7 +70,7 @@ namespace nitari_diary_backend
           UserId = diary.UserId,
           Date = diary.Date,
           Title = diary.Title,
-          Description= diary.Description,
+          Description = diary.Description,
           ImageUrl = diary.ImageUrl,
           CreatedAt = diary.CreatedAt,
         };
@@ -184,9 +186,15 @@ namespace nitari_diary_backend
 
       string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
       // create an api object.
-      int niru = 5;
-      string prompt = $"今から，あるフォーマットを提示するので，その通りに返事を行うようにしてください．\r\nまた，そのフォーマットの目的は以下の通りです．\r\n\r\n「一日の出来事を，やったこと＋その時に思ったこと，で１セットとして受け取り，その内容から一日の様子や，忙しさ，現在の精神状態などを考察して，ひとつの日記の文章として出力する．ただし，重度のADHD患者らしくやったことやその時思ったことに関連する新しい情報を最低でも{niru}個追加し，分散思考なのが見てわかるように書いてもらいたい．」\r\n\r\nまた，Inputにデータオブジェクトを渡します．あなたはOutputoの日記のデータのみを返信してください．\r\n返事はしなくて結構です．\r\n\r\n{tagDiariesJson}\r\n\r\n返事はしなくて結構です．日記のデータだけ返してください．\r\n説明も必要ないです．日記の内容以外何も記載しないでください";
+      int niru = 2;
+      string promptIntro = "あるフォーマットに従って、以下の入力データをもとに一日の日記を作成してください。";
+      string promptPurpose = $"目的：一日の出来事を、「やったこと＋その時に思ったこと」の1セットとして受け取り、その内容から一日の様子や忙しさ、現在の精神状態を考察して日記を出力することです。ただし、重度のADHD患者らしく、やったことやその時の感情に関連する新しい情報を最低でも{niru}個追加して、分散思考が見てわかるようにしてください。";
+      string promptInstructions = "日記は日本語で返信してください。返事や説明は不要です。日記の内容だけを返してください。";
+      string promptData = $"{tagDiariesJson}";
 
+      string prompt = $"{promptIntro}\r\n\r\n{promptPurpose}\r\n\r\n{promptInstructions}\r\n\r\n{promptData}";
+
+      log.LogInformation($"[POST] /daily called with user={data.UserId}");
       var api = new OpenAIAPI(apiKey);
       var chat = api.Chat.CreateConversation();
 
@@ -202,7 +210,7 @@ namespace nitari_diary_backend
       DiaryEntity diaryEntity = new DiaryEntity
       {
         PartitionKey = data.UserId,
-        RowKey = data.UserId+ "-" + data.Date,
+        RowKey = data.UserId + "-" + data.Date,
         Date = data.Date,
         UserId = data.UserId,
         Title = data.Date,
@@ -236,7 +244,7 @@ namespace nitari_diary_backend
       return new OkObjectResult(diaryResponse);
     }
 
-    public class  OpenAPIResponse
+    public class OpenAPIResponse
     {
       public string Title { get; set; }
       public string Diary { get; set; }
@@ -328,6 +336,84 @@ namespace nitari_diary_backend
       }
 
       return new OkObjectResult(result);
+    }
+
+
+    private static readonly string LineMessageApiUrl = "https://api.line.me/v2/bot/message/push";
+    private static readonly string ChannelAccessToken = Environment.GetEnvironmentVariable("CHANNEL_ACCESS_TOKEN"); // LINEチャンネルのアクセストークンをセット
+
+    [FunctionName("SendLineMessage")]
+    public static async Task Run(
+    [TimerTrigger("0 * */6 * * *")] TimerInfo myTimer, ILogger log,
+    [Table("DailyEntity", Connection = "MyStorage")] TableClient tableClient)
+    {
+      if(ChannelAccessToken == null)
+      {
+        log.LogError("ChannelAccessToken is null");
+        return;
+      }
+
+      log.LogInformation($"Function triggered at: {DateTime.Now}");
+
+      string today = DateTime.Now.ToString("yyyyMMdd");
+      log.LogInformation($"Today: {today}");
+      var allData = tableClient.Query<DiaryEntity>();
+
+      HashSet<string> uniqueUserIds = new HashSet<string>();
+      HashSet<string> userIdsWithTodayEntry = new HashSet<string>();
+
+      foreach (var diaryEntity in allData)
+      {
+        uniqueUserIds.Add(diaryEntity.UserId);
+
+        // Check if the diary entry is for today
+        if (diaryEntity.Date == today)
+        {
+          userIdsWithTodayEntry.Add(diaryEntity.UserId);
+        }
+      }
+
+      log.LogInformation($"Unique user ids: {string.Join(", ", uniqueUserIds)}");
+      log.LogInformation($"User ids with today's entry: {string.Join(", ", userIdsWithTodayEntry)}");
+
+      // Remove UserIds with today's entry from the unique list
+      uniqueUserIds.ExceptWith(userIdsWithTodayEntry);
+      var userIds = uniqueUserIds.ToList();
+      log.LogInformation($"Unique user ids: {string.Join(", ", userIds)}");
+
+      // Send message to each userId without an entry today
+      using (var httpClient = new HttpClient())
+      {
+        httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Content-Type", "application/json");
+        httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {ChannelAccessToken}");
+
+        foreach (var userId in userIds)
+        {
+          var payload = new JObject
+          {
+            ["to"] = userId, // Dynamic userId
+            ["messages"] = new JArray
+                {
+                    new JObject
+                    {
+                        ["type"] = "text",
+                        ["text"] = "日報ちゃんからリマインドです！\n今日の日報を書きましょう！\n頑張って偉い💚\nhttps://polite-moss-060907300.3.azurestaticapps.net/"
+                    }
+                }
+          };
+
+          var response = await httpClient.PostAsync(LineMessageApiUrl, new StringContent(payload.ToString(), Encoding.UTF8, "application/json"));
+
+          if (response.IsSuccessStatusCode)
+          {
+            log.LogInformation($"Message sent successfully to {userId}.");
+          }
+          else
+          {
+            log.LogError($"Error sending message to {userId}. StatusCode: {response.StatusCode}. Reason: {await response.Content.ReadAsStringAsync()}");
+          }
+        }
+      }
     }
   }
 }
