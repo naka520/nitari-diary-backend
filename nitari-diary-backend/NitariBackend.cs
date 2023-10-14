@@ -207,7 +207,7 @@ namespace nitari_diary_backend
             string response = await chat.GetResponseFromChatbotAsync();
 
             // response の内容から画像生成のための単語を抽出し英語に変換する説明
-            var nextPromptExplain = "次の日記から画像生成の為の単語を抽出して英語に変換した物を返してください。結果以外は出力しないでください";
+            var nextPromptExplain = "次の日記から画像生成の為の単語を抽出して英語に変換した物を返してください。出力結果以外は出力せずに、英語で出力してください。";
             var nextPrompt = nextPromptExplain + "\r\n\r\n" + "日記: " + response;
             chat.AppendUserInput(nextPrompt);
             string englishVector = await chat.GetResponseFromChatbotAsync();
