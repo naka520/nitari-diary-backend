@@ -71,6 +71,7 @@ namespace nitari_diary_backend
                     Date = diary.Date,
                     Title = diary.Title,
                     Description = diary.Description,
+                    EnglishV = diary.EnglishV,
                     ImageUrl = diary.ImageUrl,
                     CreatedAt = diary.CreatedAt,
                 };
@@ -113,6 +114,7 @@ namespace nitari_diary_backend
                     Date = diary.Date,
                     Title = diary.Title,
                     Description = diary.Description,
+                    EnglishV = diary.EnglishV,
                     ImageUrl = diary.ImageUrl,
                     CreatedAt = diary.CreatedAt,
                 };
@@ -145,6 +147,7 @@ namespace nitari_diary_backend
                 Date = diary.Date,
                 Title = diary.Title,
                 Description = diary.Description,
+                EnglishV = diary.EnglishV,
                 ImageUrl = diary.ImageUrl,
                 CreatedAt = diary.CreatedAt,
             };
