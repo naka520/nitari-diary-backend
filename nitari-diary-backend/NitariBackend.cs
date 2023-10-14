@@ -191,8 +191,9 @@ namespace nitari_diary_backend
             // create an api object.
             int niru = 2;
             string promptIntro = "あるフォーマットに従って、以下の入力データをもとに一日の日記を作成してください。";
-            string promptPurpose = $"目的：一日の出来事を、「やったこと＋その時に思ったこと」の1セットとして受け取り、その内容から一日の様子や忙しさ、現在の精神状態を考察して日記を出力することです。ただし、重度のADHD患者らしく、やったことやその時の感情に関連する新しい情報を最低でも{niru}個追加して、分散思考が見てわかるようにしてください。";
-            string promptInstructions = "日記は日本語で返信してください。返事や説明は不要です。日記の内容だけを返してください。";
+            //string promptPurpose = $"目的：一日の出来事を、「やったこと＋その時に思ったこと」の1セットとして受け取り、その内容から一日の様子や忙しさ、現在の精神状態を考察して日記を出力することです。ただし、重度のADHD患者らしく、やったことやその時の感情に関連する新しい情報を最低でも{niru}個追加して、分散思考が見てわかるようにしてください。";
+            string promptPurpose = $"目的：一日の出来事を、「やったこと＋その時に思ったこと」の1セットとしてそれぞれ受け取り、その内容から一日の様子や忙しさ、現在の精神状態を考察して日記を出力することです。";
+            string promptInstructions = "日記は日本語で返信してください。返事や説明は不要です。日記の内容だけを返してください。出力内容の説明も不要です。";
             string promptData = $"{tagDiariesJson}";
 
             string prompt = $"{promptIntro}\r\n\r\n{promptPurpose}\r\n\r\n{promptInstructions}\r\n\r\n{promptData}";
@@ -401,13 +402,13 @@ namespace nitari_diary_backend
                     {
                         ["to"] = userId, // Dynamic userId
                         ["messages"] = new JArray
-                {
-                    new JObject
-                    {
-                        ["type"] = "text",
-                        ["text"] = "日報ちゃんからリマインドです！\n今日の日報を書きましょう！\n頑張って偉い💚\nhttps://polite-moss-060907300.3.azurestaticapps.net/"
-                    }
-                }
+                        {
+                            new JObject
+                            {
+                                ["type"] = "text",
+                                ["text"] = "日報ちゃんからリマインドです！\n今日の日報を書きましょう！\n頑張って偉い💚\nhttps://polite-moss-060907300.3.azurestaticapps.net/"
+                            }
+                        }
                     };
 
                     var response = await httpClient.PostAsync(LineMessageApiUrl, new StringContent(payload.ToString(), Encoding.UTF8, "application/json"));
